@@ -63,35 +63,33 @@ def validate_and_normalize_observations(
     duplicate_count = int(duplicate_mask.sum())
     if duplicate_count:
         warnings.append(f"{duplicate_count} rows participate in exact measurement duplicates")
-    substrate_values: list[float] = []
-    velocity_values: list[float] = []
-    enzyme_values: list[float] = []
-    temperature_values: list[float] = []
+    quantities = {
+        "substrate_molar": ("substrate_concentration", "substrate_unit", "mole/liter", "substrate"),
+        "velocity_molar_per_s": (
+            "observed_velocity",
+            "velocity_unit",
+            "mole/liter/second",
+            "velocity",
+        ),
+        "enzyme_total_molar": (
+            "enzyme_concentration",
+            "enzyme_concentration_unit",
+            "mole/liter",
+            "enzyme concentration",
+        ),
+        "temperature_kelvin": ("temperature", "temperature_unit", "kelvin", "temperature"),
+    }
+    normalized = []
     for index, row in frame.iterrows():
         try:
-            substrate_values.append(
-                _convert(row.substrate_concentration, row.substrate_unit, "mole/liter", "substrate")
-            )
-            velocity_values.append(
-                _convert(row.observed_velocity, row.velocity_unit, "mole/liter/second", "velocity")
-            )
-            enzyme_values.append(
-                _convert(
-                    row.enzyme_concentration,
-                    row.enzyme_concentration_unit,
-                    "mole/liter",
-                    "enzyme concentration",
-                )
-            )
-            temperature_values.append(
-                _convert(row.temperature, row.temperature_unit, "kelvin", "temperature")
-            )
+            values = [
+                _convert(row[value], row[unit], target, field)
+                for value, unit, target, field in quantities.values()
+            ]
         except ValueError as error:
             errors.append(f"row {index}: {error}")
-            substrate_values.append(np.nan)
-            velocity_values.append(np.nan)
-            enzyme_values.append(np.nan)
-            temperature_values.append(np.nan)
+            values = [np.nan] * len(quantities)
+        normalized.append(values)
     frame["substrate_original_value"] = frame["substrate_concentration"]
     frame["substrate_original_unit"] = frame["substrate_unit"]
     frame["velocity_original_value"] = frame["observed_velocity"]
@@ -100,10 +98,7 @@ def validate_and_normalize_observations(
     frame["enzyme_concentration_original_unit"] = frame["enzyme_concentration_unit"]
     frame["temperature_original_value"] = frame["temperature"]
     frame["temperature_original_unit"] = frame["temperature_unit"]
-    frame["substrate_molar"] = substrate_values
-    frame["velocity_molar_per_s"] = velocity_values
-    frame["enzyme_total_molar"] = enzyme_values
-    frame["temperature_kelvin"] = temperature_values
+    frame[list(quantities)] = pd.DataFrame(normalized, index=frame.index, columns=list(quantities))
     for index, row in frame.iterrows():
         for identifier in ("assay_id", "enzyme_id", "substrate_id"):
             if pd.isna(row[identifier]) or not str(row[identifier]).strip():
