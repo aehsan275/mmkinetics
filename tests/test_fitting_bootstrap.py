@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 
+from mm_kinetics.bootstrap.kinetic import nonparametric_bootstrap
 from mm_kinetics.kinetics.equations import michaelis_menten
 from mm_kinetics.kinetics.fitting import (
     fit_michaelis_menten,
@@ -28,6 +29,16 @@ def test_fit_recovers_known_parameters():
     assert fit.vmax == pytest.approx(vmax, rel=0.1)
     assert fit.residuals.shape == substrate.shape
     assert np.isfinite(fit.covariance).all()
+
+
+def test_bootstraps_are_reproducible_and_record_failures():
+    substrate, observed, _, _, _ = _known_curve()
+    first = nonparametric_bootstrap(substrate, observed, n_bootstrap=60, random_seed=7)
+    second = nonparametric_bootstrap(substrate, observed, n_bootstrap=60, random_seed=7)
+    assert first.n_success + first.n_failures == 60
+    assert first.samples.equals(second.samples)
+    assert (first.summary.ci_lower <= first.summary.ci_upper).all()
+    assert np.isfinite(first.samples[["Km", "Vmax"]]).all().all()
 
 
 def test_fit_requires_identifiable_design():
