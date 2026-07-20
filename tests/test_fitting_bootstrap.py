@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from mm_kinetics.bootstrap.kinetic import nonparametric_bootstrap
+from mm_kinetics.bootstrap.kinetic import nonparametric_bootstrap, parametric_bootstrap
 from mm_kinetics.kinetics.equations import michaelis_menten
 from mm_kinetics.kinetics.fitting import (
     fit_michaelis_menten,
@@ -39,6 +39,14 @@ def test_bootstraps_are_reproducible_and_record_failures():
     assert first.samples.equals(second.samples)
     assert (first.summary.ci_lower <= first.summary.ci_upper).all()
     assert np.isfinite(first.samples[["Km", "Vmax"]]).all().all()
+
+
+def test_parametric_bootstrap_dimensions():
+    substrate, observed, _, _, _ = _known_curve()
+    result = parametric_bootstrap(substrate, observed, n_bootstrap=40, random_seed=9)
+    assert result.n_requested == 40
+    assert result.n_success > 30
+    assert set(result.summary.index) == {"Km", "Vmax"}
 
 
 def test_fit_requires_identifiable_design():
