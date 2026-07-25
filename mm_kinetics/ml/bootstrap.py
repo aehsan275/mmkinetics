@@ -56,8 +56,10 @@ class ConformalCalibrator:
     ) -> ConformalCalibrator:
         truth = np.asarray(y_true, dtype=float)
         prediction = np.asarray(point_prediction, dtype=float)
-        if truth.shape != prediction.shape or len(truth) < 2:
+        if truth.ndim != 1 or truth.shape != prediction.shape or len(truth) < 2:
             raise ValueError("calibration truth and predictions must align and contain >=2 rows")
+        if not (np.isfinite(truth).all() and np.isfinite(prediction).all()):
+            raise ValueError("calibration truth and predictions must contain only finite values")
         if not 0 < self.alpha < 1:
             raise ValueError("alpha must be between 0 and 1")
         scores = np.abs(truth - prediction)
