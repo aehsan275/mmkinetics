@@ -61,8 +61,8 @@ class ConformalCalibrator:
         if not 0 < self.alpha < 1:
             raise ValueError("alpha must be between 0 and 1")
         scores = np.abs(truth - prediction)
-        probability = min(1.0, np.ceil((len(scores) + 1) * (1 - self.alpha)) / len(scores))
-        self.quantile_ = float(np.quantile(scores, probability, method="higher"))
+        rank = min(len(scores), int(np.ceil((len(scores) + 1) * (1 - self.alpha))))
+        self.quantile_ = float(np.partition(scores, rank - 1)[rank - 1])
         return self
 
     def interval(self, point_prediction: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
