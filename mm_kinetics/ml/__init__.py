@@ -1,9 +1,10 @@
-from .bootstrap import BootstrapEnsemble
+from .bootstrap import BootstrapEnsemble, ConformalCalibrator
 from .features import FeatureSet, apply_feature_schema, build_feature_set
 from .models import build_model_pipelines, fit_and_evaluate_models
 
 __all__ = [
     "BootstrapEnsemble",
+    "ConformalCalibrator",
     "FeatureSet",
     "apply_feature_schema",
     "build_feature_set",
