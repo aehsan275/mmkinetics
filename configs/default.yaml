@@ -1,0 +1,23 @@
+random_seed: 42
+output_dir: .
+data:
+  source: synthetic
+  sabio_export_path: null
+  sabio_retrieval_date: null
+  sabio_query: null
+  n_enzymes: 18
+  n_substrates: 4
+  assays_per_pair: 1
+  n_concentrations: 10
+  noise_scale: 0.08
+bootstrap:
+  kinetic_iterations: 200
+  ml_iterations: 40
+  confidence_level: 0.95
+  failure_threshold: 0.2
+model:
+  target: log10_km
+  group_column: enzyme_id
+  test_size: 0.2
+  validation_size: 0.2
+  selected_model: auto
