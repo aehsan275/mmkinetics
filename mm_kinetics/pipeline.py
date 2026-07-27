@@ -79,7 +79,7 @@ def run_pipeline(config: dict) -> dict[str, object]:
         source_summary = {"source": "synthetic", "n_excluded": 0}
     else:
         sabio = ingest_sabio_export(
-            config["data"]["sabio_export_path"] or "",
+            config["data"]["sabio_export_path"],
             retrieval_date=config["data"]["sabio_retrieval_date"],
             query=config["data"]["sabio_query"],
         )
