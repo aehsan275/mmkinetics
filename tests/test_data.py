@@ -100,3 +100,19 @@ def test_sabio_adapter_accepts_long_form_parameter_export(tmp_path: Path):
     assert result.accepted.log10_km.notna().sum() == 1
     assert result.accepted.log10_kcat.notna().sum() == 1
     assert "unsupported parameter type" in result.excluded.exclusion_reason.iloc[0]
+
+
+def test_sabio_temperature_without_units_stays_missing(tmp_path: Path):
+    export = tmp_path / "sabio.tsv"
+    pd.DataFrame(
+        {
+            "UniProt ID": ["P1"],
+            "Substrate": ["glucose"],
+            "Km": [2.0],
+            "Km Unit": ["millimole/liter"],
+            "Temperature": [25.0],
+        }
+    ).to_csv(export, sep="\t", index=False)
+    result = ingest_sabio_export(export, retrieval_date="2026-08-26", query="fixture")
+    assert len(result.accepted) == 1
+    assert pd.isna(result.accepted.temperature_kelvin.iloc[0])

@@ -96,7 +96,7 @@ def fit_michaelis_menten(
         (scale_v, scale_s),
         (scale_v * 1.25, float(np.quantile(positive_s, 0.25))),
         (scale_v * 2.0, float(np.quantile(positive_s, 0.75))),
-        (max(float(np.quantile(v, 0.9)), scale_v), float(np.mean(positive_s))),
+        (scale_v, float(np.mean(positive_s))),
     ]
     best: FitResult | None = None
     failures: list[str] = []

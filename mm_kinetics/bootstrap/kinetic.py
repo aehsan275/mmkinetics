@@ -34,34 +34,17 @@ class BootstrapResult:
 
 def _summarize(samples: pd.DataFrame, confidence_level: float) -> pd.DataFrame:
     alpha = 1.0 - confidence_level
-    records: list[dict[str, float | str | int]] = []
-    for parameter in ["Km", "Vmax"]:
-        values = samples[parameter].to_numpy(dtype=float) if parameter in samples else np.array([])
-        if len(values) == 0:
-            records.append(
-                {
-                    "parameter": parameter,
-                    "n": 0,
-                    "mean": np.nan,
-                    "median": np.nan,
-                    "std": np.nan,
-                    "ci_lower": np.nan,
-                    "ci_upper": np.nan,
-                }
-            )
-        else:
-            records.append(
-                {
-                    "parameter": parameter,
-                    "n": len(values),
-                    "mean": float(np.mean(values)),
-                    "median": float(np.median(values)),
-                    "std": float(np.std(values, ddof=1)) if len(values) > 1 else 0.0,
-                    "ci_lower": float(np.quantile(values, alpha / 2)),
-                    "ci_upper": float(np.quantile(values, 1 - alpha / 2)),
-                }
-            )
-    return pd.DataFrame(records).set_index("parameter")
+    parameters = samples[["Km", "Vmax"]].astype(float)
+    return pd.DataFrame(
+        {
+            "n": len(samples),
+            "mean": parameters.mean(),
+            "median": parameters.median(),
+            "std": parameters.std(ddof=1) if len(samples) != 1 else 0.0,
+            "ci_lower": parameters.quantile(alpha / 2),
+            "ci_upper": parameters.quantile(1 - alpha / 2),
+        }
+    ).rename_axis("parameter")
 
 
 def _result(

@@ -46,14 +46,19 @@ class FeatureSet:
     target: str
 
 
-def build_feature_set(frame: pd.DataFrame, target: str) -> FeatureSet:
-    if target not in {"log10_km", "log10_kcat", "log10_efficiency"}:
-        raise ValueError("target must be a supported log-transformed kinetic parameter")
+def _usable_rows(frame: pd.DataFrame, target: str) -> pd.DataFrame:
     if target not in frame:
         raise ValueError(f"target column {target!r} is missing")
     usable = frame[np.isfinite(pd.to_numeric(frame[target], errors="coerce"))].copy()
     if usable.empty:
         raise ValueError(f"no finite values are available for {target}")
+    return usable
+
+
+def build_feature_set(frame: pd.DataFrame, target: str) -> FeatureSet:
+    if target not in {"log10_km", "log10_kcat", "log10_efficiency"}:
+        raise ValueError("target must be a supported log-transformed kinetic parameter")
+    usable = _usable_rows(frame, target)
     blocked = (
         TARGET_COLUMNS
         | MEASUREMENT_COLUMNS
@@ -82,12 +87,7 @@ def build_feature_set(frame: pd.DataFrame, target: str) -> FeatureSet:
 
 def apply_feature_schema(frame: pd.DataFrame, schema: FeatureSet) -> FeatureSet:
     target = schema.target
-    if target not in frame:
-        raise ValueError(f"target column {target!r} is missing")
-    target_values = pd.to_numeric(frame[target], errors="coerce")
-    usable = frame[np.isfinite(target_values)].copy()
-    if usable.empty:
-        raise ValueError(f"no finite values are available for {target}")
+    usable = _usable_rows(frame, target)
     columns = [*schema.numeric_columns, *schema.categorical_columns]
     return FeatureSet(
         X=usable.reindex(columns=columns).reset_index(drop=True),

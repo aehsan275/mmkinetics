@@ -163,7 +163,7 @@ def ingest_sabio_export(
         }
         if mapping["temperature"]:
             try:
-                unit = row[mapping["temperature_unit"]] if mapping["temperature_unit"] else "kelvin"
+                unit = row[mapping["temperature_unit"]] if mapping["temperature_unit"] else None
                 record["temperature_kelvin"] = _quantity(
                     row[mapping["temperature"]], unit, "kelvin"
                 )

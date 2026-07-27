@@ -52,3 +52,18 @@ def test_parametric_bootstrap_dimensions():
 def test_fit_requires_identifiable_design():
     with pytest.raises(ValueError, match="unique"):
         fit_michaelis_menten([1, 1, 1], [1, 2, 3])
+
+
+@pytest.mark.parametrize("seed, successful", [(0, 0), (12, 1)])
+def test_bootstrap_summary_handles_zero_or_one_success(seed, successful):
+    substrate = np.array([1.0, 2.0, 3.0])
+    velocity = michaelis_menten(substrate, 3.0, 2.0)
+    result = nonparametric_bootstrap(substrate, velocity, n_bootstrap=1, random_seed=seed)
+    assert result.n_success == successful
+    assert result.n_failures == 1 - successful
+    assert (result.summary["n"] == successful).all()
+    if successful:
+        assert (result.summary["std"] == 0).all()
+        np.testing.assert_allclose(result.summary["ci_lower"], result.summary["ci_upper"])
+    else:
+        assert result.summary.drop(columns="n").isna().all().all()
