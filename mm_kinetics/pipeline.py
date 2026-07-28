@@ -102,8 +102,8 @@ def run_pipeline(config: dict) -> dict[str, object]:
         raise ValueError(
             f"selected target {target!r} has no finite values in the {source_summary['source']} assay table"
         )
-    if assay_table[config["model"]["group_column"]].nunique() < 3:
-        raise ValueError("selected target/source has fewer than three usable ML groups")
+    if assay_table[config["model"]["group_column"]].nunique() < 4:
+        raise ValueError("selected target/source has fewer than four usable ML groups")
     assay_table.to_csv(output["processed"] / "assay_table.csv", index=False)
     representative_id = validation_observations.assay_id.iloc[0]
     representative = validation_observations[validation_observations.assay_id == representative_id]
@@ -161,11 +161,13 @@ def run_pipeline(config: dict) -> dict[str, object]:
         group_column=config["model"]["group_column"],
         validation_size=config["model"]["validation_size"],
         test_size=config["model"]["test_size"],
+        calibration_size=config["model"]["calibration_size"],
         random_seed=config["random_seed"],
     )
     overlap = study_overlap(splits)
     train_features = build_feature_set(splits.train, target)
     validation_features = apply_feature_schema(splits.validation, train_features)
+    calibration_features = apply_feature_schema(splits.calibration, train_features)
     test_features = apply_feature_schema(splits.test, train_features)
     models = build_model_pipelines(
         train_features.numeric_columns,
@@ -188,9 +190,9 @@ def run_pipeline(config: dict) -> dict[str, object]:
         n_bootstrap=config["bootstrap"]["ml_iterations"],
         random_seed=config["random_seed"],
     ).fit(train_features.X, train_features.y)
-    validation_prediction = ensemble.predict(validation_features.X)
+    calibration_prediction = ensemble.predict(calibration_features.X)
     calibrator = ConformalCalibrator(alpha=1 - config["bootstrap"]["confidence_level"]).fit(
-        validation_features.y, validation_prediction
+        calibration_features.y, calibration_prediction
     )
     test_prediction = ensemble.predict(test_features.X)
     lower, upper = calibrator.interval(test_prediction)
@@ -231,6 +233,10 @@ def run_pipeline(config: dict) -> dict[str, object]:
         "target": target,
         "n_raw_validation_observations": len(validation_observations),
         "n_ml_assays": len(assay_table),
+        "partition_groups": {
+            name: part[config["model"]["group_column"]].nunique()
+            for name, part in splits.partitions().items()
+        },
         "representative_fit_success": kinetic_fit.success,
         "nonparametric_failure_rate": kinetic_bootstrap.failure_rate,
         "parametric_failure_rate": parametric.failure_rate,

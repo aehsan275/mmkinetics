@@ -5,6 +5,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
+from mm_kinetics import pipeline
 from mm_kinetics.config import validate_config
 from mm_kinetics.pipeline import run_pipeline
 
@@ -25,6 +26,38 @@ def smoke_config(tmp_path):
             "model": {"selected_model": "ridge"},
         }
     )
+
+
+def test_calibration_labels_cannot_change_model_selection_or_training(tmp_path, monkeypatch):
+    config = validate_config(
+        {
+            "output_dir": str(tmp_path / "original"),
+            "data": {"n_enzymes": 10, "n_substrates": 2, "n_concentrations": 6},
+            "bootstrap": {"kinetic_iterations": 20, "ml_iterations": 10},
+        }
+    )
+    original = run_pipeline(config)
+    split = pipeline.grouped_train_validation_test_split
+
+    def change_calibration_labels(*args, **kwargs):
+        parts = split(*args, **kwargs)
+        parts.calibration[config["model"]["target"]] += 100
+        return parts
+
+    monkeypatch.setattr(pipeline, "grouped_train_validation_test_split", change_calibration_labels)
+    config["output_dir"] = str(tmp_path / "changed")
+    changed = run_pipeline(config)
+    assert original["run_summary"]["selected_model"] == changed["run_summary"]["selected_model"]
+    for filename, columns in [
+        ("model_comparison.csv", None),
+        ("ml_predictions.csv", ["true_value", "prediction"]),
+    ]:
+        before = pd.read_csv(tmp_path / "original" / "data" / "processed" / filename)
+        after = pd.read_csv(tmp_path / "changed" / "data" / "processed" / filename)
+        pd.testing.assert_frame_equal(
+            before if columns is None else before[columns],
+            after if columns is None else after[columns],
+        )
 
 
 @pytest.mark.parametrize("target", ["log10_km", "log10_kcat", "log10_efficiency"])

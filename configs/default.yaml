@@ -5,7 +5,7 @@ data:
   sabio_export_path: null
   sabio_retrieval_date: null
   sabio_query: null
-  n_enzymes: 18
+  n_enzymes: 100
   n_substrates: 4
   assays_per_pair: 1
   n_concentrations: 10
@@ -20,4 +20,5 @@ model:
   group_column: enzyme_id
   test_size: 0.2
   validation_size: 0.2
+  calibration_size: 0.2
   selected_model: auto

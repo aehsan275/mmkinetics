@@ -14,7 +14,7 @@ DEFAULTS = {
         "sabio_export_path": None,
         "sabio_retrieval_date": None,
         "sabio_query": None,
-        "n_enzymes": 18,
+        "n_enzymes": 100,
         "n_substrates": 4,
         "assays_per_pair": 1,
         "n_concentrations": 10,
@@ -31,6 +31,7 @@ DEFAULTS = {
         "group_column": "enzyme_id",
         "test_size": 0.2,
         "validation_size": 0.2,
+        "calibration_size": 0.2,
         "selected_model": "auto",
     },
 }
@@ -106,7 +107,7 @@ def validate_config(payload: dict) -> dict:
         "gradient_boosting",
     ):
         raise ValueError("unsupported model.selected_model")
-    fractions = [model[name] for name in ("validation_size", "test_size")]
+    fractions = [model[name] for name in ("validation_size", "test_size", "calibration_size")]
     for fraction in fractions:
         number(fraction, "held-out fraction", 0, 0.5)
     if sum(fractions) >= 0.8:
