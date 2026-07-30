@@ -41,12 +41,18 @@ from mm_kinetics.ml.models import (
 from mm_kinetics.synthetic import assay_level_truth, generate_synthetic_dataset
 
 
-def _json_default(value):
-    if isinstance(value, (np.floating, np.integer)):
-        return value.item()
+def _json_safe(value):
+    if isinstance(value, np.generic):
+        value = value.item()
+    if isinstance(value, float) and (not np.isfinite(value)):
+        return None
     if isinstance(value, Path):
         return str(value)
-    raise TypeError(f"cannot serialize {type(value).__name__}")
+    if isinstance(value, dict):
+        return {key: _json_safe(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(item) for item in value]
+    return value
 
 
 def _prepare_output(root: Path) -> dict[str, Path]:
@@ -87,7 +93,7 @@ def run_pipeline(config: dict) -> dict[str, object]:
         sabio.accepted.to_csv(output["processed"] / "sabio_accepted.csv", index=False)
         sabio.excluded.to_csv(output["processed"] / "sabio_excluded.csv", index=False)
         (output["processed"] / "sabio_provenance.json").write_text(
-            json.dumps(sabio.provenance, indent=2), encoding="utf-8"
+            json.dumps(_json_safe(sabio.provenance), indent=2, allow_nan=False), encoding="utf-8"
         )
         source_summary = {"source": "SABIO-RK", "n_excluded": len(sabio.excluded)}
     target = config["model"]["target"]
@@ -192,18 +198,25 @@ def run_pipeline(config: dict) -> dict[str, object]:
     ).fit(train_features.X, train_features.y)
     calibration_prediction = ensemble.predict(calibration_features.X)
     calibrator = ConformalCalibrator(alpha=1 - config["bootstrap"]["confidence_level"]).fit(
-        calibration_features.y, calibration_prediction
+        calibration_features.y,
+        calibration_prediction,
+        groups=splits.calibration[config["model"]["group_column"]],
     )
     test_prediction = ensemble.predict(test_features.X)
     lower, upper = calibrator.interval(test_prediction)
     test_metrics = regression_metrics(test_features.y, test_prediction)
-    predictive_interval_metrics = interval_metrics(test_features.y, lower, upper)
+    predictive_interval_metrics = interval_metrics(
+        test_features.y, lower, upper, groups=splits.test[config["model"]["group_column"]]
+    )
+    predictive_interval_metrics["calibration_group_count"] = calibrator.calibration_count_
+    interval_status = np.where(np.isinf(lower) | np.isinf(upper), "unbounded", "finite")
     predictions = pd.DataFrame(
         {
             "true_value": test_features.y,
             "prediction": test_prediction,
             "lower_95": lower,
             "upper_95": upper,
+            "interval_status": interval_status,
             "interval_width": upper - lower,
             "absolute_error": np.abs(test_prediction - test_features.y.to_numpy()),
         }
@@ -241,16 +254,24 @@ def run_pipeline(config: dict) -> dict[str, object]:
         "nonparametric_failure_rate": kinetic_bootstrap.failure_rate,
         "parametric_failure_rate": parametric.failure_rate,
         "selected_model": selected,
+        "calibration": {
+            "confidence_level": config["bootstrap"]["confidence_level"],
+            "calibration_group_count": calibrator.calibration_count_,
+            "residual_quantile": calibrator.quantile_,
+            "interval_status": "unbounded" if np.isinf(calibrator.quantile_) else "finite",
+        },
         "test_metrics": test_metrics,
     }
-    metrics_payload = {
-        "run_summary": run_summary,
-        "predictive_interval_metrics": predictive_interval_metrics,
-        "study_overlap": overlap,
-        "figures": [str(path) for path in figure_paths],
-    }
+    metrics_payload = _json_safe(
+        {
+            "run_summary": run_summary,
+            "predictive_interval_metrics": predictive_interval_metrics,
+            "study_overlap": overlap,
+            "figures": [str(path) for path in figure_paths],
+        }
+    )
     (output["reports"] / "metrics.json").write_text(
-        json.dumps(metrics_payload, indent=2, default=_json_default), encoding="utf-8"
+        json.dumps(metrics_payload, indent=2, allow_nan=False), encoding="utf-8"
     )
     return metrics_payload
 
@@ -263,7 +284,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     config = load_config(args.config)
     result = run_pipeline(config)
-    print(json.dumps(result, indent=2, default=_json_default))
+    print(json.dumps(result, indent=2, allow_nan=False))
     return 0
 
 

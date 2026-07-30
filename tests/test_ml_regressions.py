@@ -5,7 +5,7 @@ from mm_kinetics.ml.bootstrap import ConformalCalibrator
 
 
 @pytest.mark.parametrize(
-    "n, alpha, expected", [(10, 0.5, 6.0), (9, 0.3, 7.0), (5, 0.5, 3.0), (2, 0.05, 2.0)]
+    "n, alpha, expected", [(10, 0.5, 6.0), (9, 0.3, 7.0), (5, 0.5, 3.0), (2, 0.05, np.inf)]
 )
 def test_conformal_uses_finite_sample_residual_rank(n, alpha, expected):
     truth = np.arange(n, 0, -1, dtype=float)

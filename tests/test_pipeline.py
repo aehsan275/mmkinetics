@@ -1,7 +1,9 @@
+import json
 import subprocess
 import sys
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -67,6 +69,23 @@ def test_end_to_end_pipeline_smoke(tmp_path: Path, target: str, smoke_config):
     assert (tmp_path / "reports" / "generated" / "metrics.json").exists()
     assert (tmp_path / "data" / "processed" / "ml_predictions.csv").exists()
     assert len(result["figures"]) == 5
+    predictions = pd.read_csv(tmp_path / "data" / "processed" / "ml_predictions.csv")
+    assert set(predictions.interval_status) == {"unbounded"}
+    assert np.isneginf(predictions.lower_95).all()
+    assert np.isposinf(predictions.upper_95).all()
+    assert result["run_summary"]["calibration"]["calibration_group_count"] == 1
+    assert result["predictive_interval_metrics"]["mean_width"] is None
+    assert result["predictive_interval_metrics"]["group_coverage"] == 1
+    assert result["predictive_interval_metrics"]["unbounded_fraction"] == 1
+
+    def reject_nonfinite(token):
+        raise AssertionError(f"nonfinite JSON token: {token}")
+
+    stored = json.loads(
+        (tmp_path / "reports" / "generated" / "metrics.json").read_text(),
+        parse_constant=reject_nonfinite,
+    )
+    assert stored == result
 
 
 def test_module_entrypoint_loads_package():

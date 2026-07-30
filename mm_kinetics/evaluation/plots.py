@@ -91,9 +91,24 @@ def plot_predictions(
     order = np.argsort(y_true)
     fig, ax = plt.subplots(figsize=(7, 4.5))
     x = np.arange(len(order))
-    ax.fill_between(
-        x, lower[order], upper[order], alpha=0.25, color="#457b9d", label="Calibrated 95% interval"
-    )
+    finite = np.isfinite(lower[order]) & np.isfinite(upper[order])
+    if finite.any():
+        ax.fill_between(
+            x,
+            np.where(finite, lower[order], np.nan),
+            np.where(finite, upper[order], np.nan),
+            alpha=0.25,
+            color="#457b9d",
+            label="Calibrated 95% interval",
+        )
+    if not finite.all():
+        ax.text(
+            0.02,
+            0.98,
+            f"Unbounded intervals: {(~finite).sum()}/{len(order)} assays",
+            transform=ax.transAxes,
+            va="top",
+        )
     ax.plot(x, prediction[order], "o", color="#1d3557", label="Prediction", markersize=4)
     ax.plot(x, y_true[order], "x", color="#e63946", label="Observed")
     ax.set(
