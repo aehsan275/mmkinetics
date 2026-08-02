@@ -214,8 +214,9 @@ def run_pipeline(config: dict) -> dict[str, object]:
         {
             "true_value": test_features.y,
             "prediction": test_prediction,
-            "lower_95": lower,
-            "upper_95": upper,
+            "lower": lower,
+            "upper": upper,
+            "confidence_level": config["bootstrap"]["confidence_level"],
             "interval_status": interval_status,
             "interval_width": upper - lower,
             "absolute_error": np.abs(test_prediction - test_features.y.to_numpy()),
@@ -239,6 +240,7 @@ def run_pipeline(config: dict) -> dict[str, object]:
             lower,
             upper,
             output["figures"] / "05_predictions.png",
+            confidence_level=config["bootstrap"]["confidence_level"],
         ),
     ]
     run_summary = {

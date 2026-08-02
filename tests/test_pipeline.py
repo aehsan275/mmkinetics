@@ -71,8 +71,10 @@ def test_end_to_end_pipeline_smoke(tmp_path: Path, target: str, smoke_config):
     assert len(result["figures"]) == 5
     predictions = pd.read_csv(tmp_path / "data" / "processed" / "ml_predictions.csv")
     assert set(predictions.interval_status) == {"unbounded"}
-    assert np.isneginf(predictions.lower_95).all()
-    assert np.isposinf(predictions.upper_95).all()
+    assert np.isneginf(predictions.lower).all()
+    assert np.isposinf(predictions.upper).all()
+    assert (predictions.confidence_level == 0.9).all()
+    assert "lower_95" not in predictions and "upper_95" not in predictions
     assert result["run_summary"]["calibration"]["calibration_group_count"] == 1
     assert result["predictive_interval_metrics"]["mean_width"] is None
     assert result["predictive_interval_metrics"]["group_coverage"] == 1

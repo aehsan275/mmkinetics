@@ -87,7 +87,12 @@ def plot_predictions(
     lower: np.ndarray,
     upper: np.ndarray,
     path: str | Path,
+    *,
+    confidence_level: float = 0.95,
 ) -> Path:
+    if not 0 < confidence_level < 1:
+        raise ValueError("confidence_level must be between 0 and 1")
+    interval_label = f"Calibrated {100 * confidence_level:g}% interval"
     order = np.argsort(y_true)
     fig, ax = plt.subplots(figsize=(7, 4.5))
     x = np.arange(len(order))
@@ -99,13 +104,13 @@ def plot_predictions(
             np.where(finite, upper[order], np.nan),
             alpha=0.25,
             color="#457b9d",
-            label="Calibrated 95% interval",
+            label=interval_label,
         )
     if not finite.all():
         ax.text(
             0.02,
             0.98,
-            f"Unbounded intervals: {(~finite).sum()}/{len(order)} assays",
+            f"{interval_label}: unbounded for {(~finite).sum()}/{len(order)} assays",
             transform=ax.transAxes,
             va="top",
         )
